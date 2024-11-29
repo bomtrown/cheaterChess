@@ -27,19 +27,10 @@ class ChessPiece:
         self.type = type
         self.color = color
 
-    def move(self, board, start_pos, end_pos, turn):
-        """Move the piece if valid and if it is the correct player's turn."""
-        start_x, start_y = start_pos
-        end_x, end_y = end_pos
-        piece = board[start_x][start_y]
-
-        if piece is None or piece.color != turn:
-            print(f"It's {turn}'s turn!")
-            return False
-
-        # Move the piece
-        board[start_x][start_y] = None
-        board[end_x][end_y] = piece
+    def move(self, board, start_pos, end_pos):
+        """Move the piece"""
+        board[start_pos[0]][start_pos[1]] = None
+        board[end_pos[0]][end_pos[1]] = self
         return True
 
 # Helper function to create the initial chessboard
@@ -82,7 +73,6 @@ def update_pieces(board):
                 ax.text(j, i, symbol, ha="center", va="center", fontsize=24, color=text_color)
 
     plt.draw()
-
 
 def is_within_board(x, y):
     """Check if the given position is within the chessboard boundaries."""
@@ -221,7 +211,7 @@ def on_click(event):
     if event.inaxes == ax:
         col = int(event.xdata + 0.5)
         row = int(event.ydata + 0.5)
-
+        
         # click 1 - if start_pos == None, it is a piece, the piece is on the right team and the piece can move
         if start_pos == None:
             # Ensure it is a piece
@@ -244,13 +234,11 @@ def on_click(event):
             # Ensure it is a place the piece can move to
             if is_valid_move(selected_type, selected_color, start_pos, [row, col]):
                 end_pos = (row, col)
-                piece = chessboard[start_pos[0]][start_pos[1]]
 
-                if piece and piece.move(chessboard, start_pos, end_pos, turn):
-                    turn = "black" if turn == "white" else "white"
-                    update_pieces(chessboard)
-                else:
-                    print("Invalid move! Try again.")
+                # Complete the move
+                chessboard[start_pos[0]][start_pos[1]].move(chessboard, start_pos, end_pos)
+                turn = "black" if turn == "white" else "white"
+                update_pieces(chessboard)
 
                 # Reset for the next move
                 start_pos = None
@@ -265,4 +253,5 @@ update_pieces(chessboard)
 # Connect the click handler
 fig.canvas.mpl_connect('button_press_event', on_click)
 
+# Open the play window
 plt.show()
