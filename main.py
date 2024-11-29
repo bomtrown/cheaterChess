@@ -19,7 +19,7 @@ chessboard_pattern = np.zeros((8, 8))
 chessboard_pattern[1::2, ::2] = 1  # Light gray squares
 chessboard_pattern[::2, 1::2] = 1  # Light gray squares
 
-selected_pos = None  # Track the user's selected positions
+start_pos = None  # Track the user's selected positions
 turn = "white"  # Track the current turn
 
 class ChessPiece:
@@ -88,11 +88,11 @@ def is_within_board(x, y):
     """Check if the given position is within the chessboard boundaries."""
     return 0 <= x < 8 and 0 <= y < 8
 
-def get_valid_moves(type, colour, pos):
+def get_valid_moves(type, color, pos):
     """
     Get valid moves for a given chess piece, considering the current board state.
     :param type: Piece type ('king', 'queen', 'rook', 'bishop', 'knight', 'pawn')
-    :param colour: Piece colour ('white', 'black')
+    :param color: Piece color ('white', 'black')
     :param pos: Tuple (row, column) representing the current position
     :param board: 2D list representing the chessboard with ChessPiece objects or None
     :return: A 2D numpy array where 1 represents a valid move
@@ -105,7 +105,7 @@ def get_valid_moves(type, colour, pos):
         """Check if a position contains an enemy piece."""
         if not is_within_board(px, py) or not chessboard[px][py]:
             return False
-        return chessboard[px][py].color != colour
+        return chessboard[px][py].color != color
 
     def is_empty_square(px, py):
         """Check if a position is empty."""
@@ -165,7 +165,7 @@ def get_valid_moves(type, colour, pos):
                 valid_moves[nx][ny] = 1
 
     elif type == 'pawn':
-        if colour == 'white':
+        if color == 'white':
             # Move forward
             if is_empty_square(x - 1, y):
                 valid_moves[x - 1][y] = 1
@@ -176,7 +176,7 @@ def get_valid_moves(type, colour, pos):
                 valid_moves[x - 1][y - 1] = 1
             if is_enemy_piece(x - 1, y + 1):
                 valid_moves[x - 1][y + 1] = 1
-        elif colour == 'black':
+        elif color == 'black':
             # Move forward
             if is_empty_square(x + 1, y):
                 valid_moves[x + 1][y] = 1
@@ -190,12 +190,12 @@ def get_valid_moves(type, colour, pos):
 
     return valid_moves
 
-def show_valid_moves(type, colour, pos):
+def show_valid_moves(type, color, pos):
     """
     Highlight valid moves for a given piece type and position on the chessboard.
     """
     # Get valid moves for the piece
-    valid_moves = get_valid_moves(type, colour, pos)
+    valid_moves = get_valid_moves(type, color, pos)
 
     # Iterate over the valid_moves matrix
     for i in range(8):
@@ -207,45 +207,56 @@ def show_valid_moves(type, colour, pos):
 
     plt.draw()
 
-def is_valid_move(type, colour, start_pos, end_pos):
-    if get_valid_moves(type, colour, start_pos)[end_pos[0]][end_pos[1]] == 1:
+def is_valid_move(type, color, start_pos, end_pos):
+    if get_valid_moves(type, color, start_pos)[end_pos[0]][end_pos[1]] == 1:
         return True
     else:
         return False
 
 # Handle user clicks
 def on_click(event):
-    global selected_pos, selected_type, selected_colour, turn
+    global start_pos, selected_type, selected_color, turn
 
     # Convert click coordinates to chessboard indices
     if event.inaxes == ax:
         col = int(event.xdata + 0.5)
         row = int(event.ydata + 0.5)
-        if is_within_board(row, col):
-            if selected_pos is None and chessboard[row][col] is not None:  # First click: select the piece
-                if chessboard[row][col].color == turn:
-                    selected_pos = (row, col)
-                    selected_type = chessboard[row][col].type
-                    selected_colour = chessboard[row][col].color
-                    print(selected_colour, selected_type)
-                    show_valid_moves(selected_type, selected_colour, selected_pos)
-                else:
-                    print("It's not " + chessboard[row][col].color + "'s go")
-            elif selected_pos != None and is_valid_move(selected_type, selected_colour, selected_pos, [row, col]):  # Second click: move the piece
-                start_pos = selected_pos
-                end_pos = (row, col)
-                selected_pos = None  # Reset for the next move
-                selected_colour = None
-                selected_type = None
 
+        # click 1 - if start_pos == None, it is a piece, the piece is on the right team and the piece can move
+        if start_pos == None:
+            # Ensure it is a piece
+            if chessboard[row][col] is not None:
+                # Ensure it is on the right team
+                if chessboard[row][col].color == turn:
+                    # Ensure the piece can move
+                    if sum(sum(row) for row in get_valid_moves(chessboard[row][col].type, chessboard[row][col].color, [row, col])) != 0:
+                        # Set start_pos
+                        start_pos = (row, col)
+                        selected_type = chessboard[row][col].type
+                        selected_color = chessboard[row][col].color
+                        print(selected_color, selected_type, 'on', start_pos)
+                        show_valid_moves(selected_type, selected_color, start_pos)
+                    else: print("This piece is not able to move")
+                else: print("Not the correct colour")
+            else: print("Not a piece")
+        # click 2 - if start_pos != None and the piece can move to the location
+        else:
+            # Ensure it is a place the piece can move to
+            if is_valid_move(selected_type, selected_color, start_pos, [row, col]):
+                end_pos = (row, col)
                 piece = chessboard[start_pos[0]][start_pos[1]]
+
                 if piece and piece.move(chessboard, start_pos, end_pos, turn):
                     turn = "black" if turn == "white" else "white"
                     update_pieces(chessboard)
                 else:
                     print("Invalid move! Try again.")
-            else:
-                print('That is not a piece')
+
+                # Reset for the next move
+                start_pos = None
+                selected_color = None
+                selected_type = None
+            else: print("Selected piece cannot move here")
 
 # Initialize the game
 chessboard = create_initial_board()
